@@ -10,8 +10,7 @@ const api = supertest(app)
 const newBlog = {
     title: 'Uusi Blogi',
     author: 'Markku Mäenpää',
-    url: 'www.uusiblogi.com',
-    likes: 7
+    url: 'www.uusiblogi.com'
   };
 
 describe('Blog API', () => {
@@ -67,7 +66,51 @@ describe('Blog API', () => {
     assert.strictEqual(response.body.length,  original.body.length + 1);
     const addedBlog = response.body.find(blog => blog.title === newBlog.title);
     assert.strictEqual(addedBlog.title, newBlog.title);
+    assert.strictEqual(addedBlog.likes, 0)  // Tarkastetaan että tykkäykset on 0 vaikka uudessa blogissa ei niitä anneta
   });
+
+
+  test('blog without title is not added', async () => {
+    const original = await api.get('/api/blogs');
+    const newBlog = {
+      author: 'Kari Kivi',
+      url: 'www.blogi.fi'
+    }
+    await api
+      .post('/api/blogs')
+      .send(newBlog)
+      .expect(400)
+
+    const response = await api.get('/api/blogs')
+    assert.strictEqual(response.body.length, original.body.length)
+  })
+
+  test('blog without url is not added', async () => {
+    const original = await api.get('/api/blogs');
+    const newBlog = {
+      title: 'Testi Blogi',
+      author: 'Roope Puu'
+    }
+    await api
+      .post('/api/blogs')
+      .send(newBlog)
+      .expect(400)
+
+    const response = await api.get('/api/blogs')
+    assert.strictEqual(response.body.length, original.body.length)
+  })
+
+  test('blog can be deleted by id', async () => {
+    const original = await api.get('/api/blogs');
+    const blogToDelete = original.body[0]
+    await api
+        .delete(`/api/blogs/${blogToDelete.id}`)
+        .expect(204)
+    const response = await api.get('/api/blogs')
+    assert.strictEqual(response.body.length, original.body.length - 1)
+    const deteledBlog = response.body.find(blog => blog.id === blogToDelete.id)
+    assert.strictEqual(deteledBlog, undefined)
+  })
 
 after(async () => {
   await mongoose.connection.close()
